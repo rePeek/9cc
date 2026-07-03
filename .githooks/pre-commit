@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mapfile -d '' files < <(
+    git diff --cached --name-only -z --diff-filter=ACMR -- \
+        '*.c' '*.h' '*.cc' '*.cpp' '*.cxx' '*.hpp' '*.hh' '*.hxx'
+)
+
+if ((${#files[@]} == 0)); then
+    exit 0
+fi
+
+if ! command -v clang-format >/dev/null 2>&1; then
+    echo "clang-format not found. Run commits from nix develop." >&2
+    exit 1
+fi
+
+clang-format -i -- "${files[@]}"
+git add -- "${files[@]}"
