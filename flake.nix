@@ -10,6 +10,7 @@
       devShells.${system}.default = pkgs.mkShell {
         packages = [
           pkgs.gcc
+          pkgs.glibc.static
           pkgs.llvmPackages.clang-tools
 
           pkgs.cmake
