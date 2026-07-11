@@ -25,12 +25,31 @@ struct Token {
 // 当前关注的 token
 Token *token;
 
+// 输入字符串
+char *user_input;
+
 // 用于报告错误的函数
 // 接收与 printf 相同的参数
 void error(char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
+    va_end(ap);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
+// 报告错误位置
+void error_at(char *loc, char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+
+    int pos = loc - user_input;
+    fprintf(stderr, "%s\n", user_input);
+    fprintf(stderr, "%*s", pos, "");
+    fprintf(stderr, "^ ");
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
     fprintf(stderr, "\n");
     exit(1);
 }
@@ -48,7 +67,7 @@ bool consume(char op) {
 // 否则报告错误。
 void expect(char op) {
     if (token->kind != TK_RESERVED || token->str[0] != op)
-        error("不是 '%c'", op);
+        error_at(token->str, "不是 '%c'", op);
     token = token->next;
 }
 
@@ -56,7 +75,7 @@ void expect(char op) {
 // 否则报告错误。
 int expect_number() {
     if (token->kind != TK_NUM)
-        error("不是数字");
+        error_at(token->str, "不是数字");
     int val = token->val;
     token = token->next;
     return val;
@@ -97,7 +116,7 @@ Token *tokenize(char *p) {
             continue;
         }
 
-        error("无法 tokenize");
+        error_at(p, "无法 tokenize");
     }
 
     new_token(TK_EOF, cur, p);
@@ -109,6 +128,8 @@ int main(int argc, char **argv) {
         error("参数个数不正确");
         return 1;
     }
+
+    user_input = argv[1];
 
     // 进行 tokenize
     token = tokenize(argv[1]);
