@@ -42,6 +42,10 @@ assert 47 "5+6*7"
 assert 15 "5*(9-6)"
 assert 4 "(3+5)/2"
 assert 10 "20/2/1-10+10"
+assert 3 "+3"
+assert 7 "-3+10"
+assert 5 "5*-3+20"
+assert 2 "-(3+5)+10"
 assert_error "1+3++
-    ^ 不是数字" "1+3++"
+     ^ 不是数字" "1+3++"
 echo OK

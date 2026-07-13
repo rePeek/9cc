@@ -144,6 +144,7 @@ struct Node {
 
 Node *expr();
 Node *mul();
+Node *unary();
 Node *primary();
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
@@ -174,6 +175,27 @@ Node *expr() {
   }
 }
 
+Node *mul() {
+  Node *node = unary();
+
+  for (;;) {
+    if (consume('*'))
+      node = new_node(ND_MUL, node, unary());
+    else if (consume('/'))
+      node = new_node(ND_DIV, node, unary());
+    else
+      return node;
+  }
+}
+
+Node *unary() {
+  if (consume('+'))
+    return primary();
+  if (consume('-'))
+    return new_node(ND_SUB, new_node_num(0), primary());
+  return primary();
+}
+
 Node *primary() {
   // 如果下一个 token 是 "("，则应为 "(" expr ")"
   if (consume('(')) {
@@ -184,19 +206,6 @@ Node *primary() {
 
   // 否则应为数值
   return new_node_num(expect_number());
-}
-
-Node *mul() {
-  Node *node = primary();
-
-  for (;;) {
-    if (consume('*'))
-      node = new_node(ND_MUL, node, primary());
-    else if (consume('/'))
-      node = new_node(ND_DIV, node, primary());
-    else
-      return node;
-  }
 }
 
 void gen(Node *node) {
