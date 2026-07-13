@@ -20,6 +20,7 @@ struct Token {
   char *str;      // token 字符串
   TokenKind kind; // token 类型
   int val;        // kind 为 TK_NUM 时的数值
+  int len;        // token 长度
 };
 
 // 当前关注的 token
@@ -56,8 +57,9 @@ void error_at(char *loc, char *fmt, ...) {
 
 // 如果下一个 token 是期望的符号，就读取一个 token
 // 并返回 true；否则返回 false。
-bool consume(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op)
+bool consume(char *op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
     return false;
   token = token->next;
   return true;
@@ -65,9 +67,10 @@ bool consume(char op) {
 
 // 如果下一个 token 是期望的符号，就读取一个 token。
 // 否则报告错误。
-void expect(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op)
-    error_at(token->str, "不是 '%c'", op);
+void expect(char *op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
+    error_at(token->str, "不是 '%s'", op);
   token = token->next;
 }
 
@@ -92,6 +95,8 @@ Token *new_token(TokenKind kind, Token *cur, char *str) {
   return tok;
 }
 
+bool startswith(char *p, char *q) { return strncmp(p, q, strlen(q)) == 0; }
+
 // tokenize 输入字符串 p 并返回结果
 Token *tokenize(char *p) {
   Token head;
@@ -105,14 +110,25 @@ Token *tokenize(char *p) {
       continue;
     }
 
-    if (strchr("+-*/()", *p)) {
+    if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
+        startswith(p, ">=")) {
+      cur = new_token(TK_RESERVED, cur, p);
+      cur->len = 2;
+      p += 2;
+      continue;
+    }
+
+    if (strchr("+-*/()<>", *p)) {
       cur = new_token(TK_RESERVED, cur, p++);
+      cur->len = 1;
       continue;
     }
 
     if (isdigit(*p)) {
+      char *q = p;
       cur = new_token(TK_NUM, cur, p);
       cur->val = strtol(p, &p, 10);
+      cur->len = p - q;
       continue;
     }
 
@@ -129,6 +145,10 @@ typedef enum {
   ND_SUB, // -
   ND_MUL, // *
   ND_DIV, // /
+  ND_EQ,  // ==
+  ND_NE,  // !=
+  ND_LT,  // <
+  ND_LE,  // <=
   ND_NUM, // 整数
 } NodeKind;
 
@@ -143,6 +163,9 @@ struct Node {
 };
 
 Node *expr();
+Node *equality();
+Node *relational();
+Node *add();
 Node *mul();
 Node *unary();
 Node *primary();
@@ -162,13 +185,47 @@ Node *new_node_num(int val) {
   return node;
 }
 
-Node *expr() {
+Node *expr() { return equality(); }
+
+Node *equality() {
+  Node *node = relational();
+
+  for (;;) {
+    if (consume("=="))
+      node = new_node(ND_EQ, node, relational());
+    else if (consume("!="))
+      node = new_node(ND_NE, node, relational());
+    else
+      return node;
+  }
+}
+
+Node *relational() {
+  Node *node = add();
+
+  for (;;) {
+    if (consume("<"))
+      node = new_node(ND_LT, node, add());
+    else if (consume("<="))
+      node = new_node(ND_LE, node, add());
+    else if (consume(">")) {
+      Node *rhs = add();
+      node = new_node(ND_LT, rhs, node);
+    } else if (consume(">=")) {
+      Node *rhs = add();
+      node = new_node(ND_LE, rhs, node);
+    } else
+      return node;
+  }
+}
+
+Node *add() {
   Node *node = mul();
 
   for (;;) {
-    if (consume('+'))
+    if (consume("+"))
       node = new_node(ND_ADD, node, mul());
-    else if (consume('-'))
+    else if (consume("-"))
       node = new_node(ND_SUB, node, mul());
     else
       return node;
@@ -179,9 +236,9 @@ Node *mul() {
   Node *node = unary();
 
   for (;;) {
-    if (consume('*'))
+    if (consume("*"))
       node = new_node(ND_MUL, node, unary());
-    else if (consume('/'))
+    else if (consume("/"))
       node = new_node(ND_DIV, node, unary());
     else
       return node;
@@ -189,18 +246,18 @@ Node *mul() {
 }
 
 Node *unary() {
-  if (consume('+'))
+  if (consume("+"))
     return primary();
-  if (consume('-'))
+  if (consume("-"))
     return new_node(ND_SUB, new_node_num(0), primary());
   return primary();
 }
 
 Node *primary() {
   // 如果下一个 token 是 "("，则应为 "(" expr ")"
-  if (consume('(')) {
+  if (consume("(")) {
     Node *node = expr();
-    expect(')');
+    expect(")");
     return node;
   }
 
@@ -233,6 +290,26 @@ void gen(Node *node) {
   case ND_DIV:
     printf(" cqo\n");
     printf(" idiv rdi\n");
+    break;
+  case ND_EQ:
+    printf(" cmp rax, rdi\n");
+    printf(" sete al\n");
+    printf(" movzb rax, al\n");
+    break;
+  case ND_NE:
+    printf(" cmp rax, rdi\n");
+    printf(" setne al\n");
+    printf(" movzb rax, al\n");
+    break;
+  case ND_LT:
+    printf(" cmp rax, rdi\n");
+    printf(" setl al\n");
+    printf(" movzb rax, al\n");
+    break;
+  case ND_LE:
+    printf(" cmp rax, rdi\n");
+    printf(" setle al\n");
+    printf(" movzb rax, al\n");
     break;
   case ND_NUM:
     break;
