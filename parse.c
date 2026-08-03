@@ -31,6 +31,16 @@ static int expect_number(void) {
 
 bool at_eof(void) { return token->kind == TK_EOF; }
 
+// 如果下一个 token 是标识符，就读取一个 token 并返回它。
+// 否则返回 NULL。
+Token *consume_ident(void) {
+  if (token->kind != TK_IDENT)
+    return NULL;
+  Token *tok = token;
+  token = token->next;
+  return tok;
+}
+
 // 创建新 token 并连接到 cur
 static Token *new_token(TokenKind kind, Token *cur, char *str) {
   Token *tok = calloc(1, sizeof(Token));
@@ -64,7 +74,7 @@ Token *tokenize(char *p) {
       continue;
     }
 
-    if (strchr("+-*/()<>", *p)) {
+    if (strchr("+-*/()<>;=", *p)) {
       cur = new_token(TK_RESERVED, cur, p++);
       cur->len = 1;
       continue;
@@ -77,6 +87,12 @@ Token *tokenize(char *p) {
       cur->len = p - q;
       continue;
     }
+    // 标识符（小写英文字母）
+    if ('a' <= *p && *p <= 'z') {
+      cur = new_token(TK_IDENT, cur, p++);
+      cur->len = 1;
+      continue;
+    }
 
     error_at(p, "无法 tokenize");
   }
@@ -85,12 +101,15 @@ Token *tokenize(char *p) {
   return head.next;
 }
 
+static Node *assign(void);
 static Node *equality(void);
 static Node *relational(void);
 static Node *add(void);
 static Node *mul(void);
 static Node *unary(void);
 static Node *primary(void);
+
+Node *code[100];
 
 static Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
@@ -107,7 +126,27 @@ static Node *new_node_num(int val) {
   return node;
 }
 
-Node *expr(void) { return equality(); }
+void program(void) {
+  int i = 0;
+  while (!at_eof())
+    code[i++] = stmt();
+  code[i] = NULL;
+}
+
+Node *stmt() {
+  Node *node = expr();
+  expect(";");
+  return node;
+}
+
+Node *expr(void) { return assign(); }
+
+Node *assign() {
+  Node *node = equality();
+  if (consume("="))
+    node = new_node(ND_ASSIGN, node, assign());
+  return node;
+}
 
 static Node *equality(void) {
   Node *node = relational();
@@ -182,7 +221,13 @@ static Node *primary(void) {
     expect(")");
     return node;
   }
-
+  Token *tok = consume_ident();
+  if (tok) {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_LVAR;
+    node->offset = (tok->str[0] - 'a' + 1) * 8;
+    return node;
+  }
   // 否则应为数值
   return new_node_num(expect_number());
 }

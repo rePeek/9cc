@@ -41,19 +41,32 @@ int main(int argc, char **argv) {
   user_input = argv[1];
   token = tokenize(user_input);
 
-  Node *node = expr();
-
-  if (!at_eof())
-    error_at(token->str, "无法解析");
+  program();
 
   // 输出汇编前半部分
   printf(".intel_syntax noprefix\n");
   printf(".globl main\n");
   printf("main:\n");
 
-  gen(node);
+  // prologue
+  // 确保 26 个变量的区域
+  printf(" push rbp\n");
+  printf(" mov rbp, rsp\n");
+  printf(" sub rsp, 208\n");
 
-  printf(" pop rax\n");
+  // 从第一个表达式开始依次生成代码
+  for (int i = 0; code[i]; i++) {
+    gen(code[i]);
+
+    // 表达式求值结果会在栈上留下一个值
+    // 因此预先 pop，避免栈溢出
+    printf(" pop rax\n");
+  }
+
+  // epilogue
+  // 最后一个表达式的结果留在 RAX 中，因此它就是返回值
+  printf(" mov rsp, rbp\n");
+  printf(" pop rbp\n");
   printf(" ret\n");
   printf(".section .note.GNU-stack,\"\",@progbits\n");
   return 0;
