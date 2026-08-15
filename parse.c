@@ -1,4 +1,22 @@
 #include "9cc.h"
+#include <string.h>
+
+LVar *locals;
+
+LVar *find_lvar(Token *tok) {
+  for (LVar *var = locals; var; var = var->next)
+    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+      return var;
+  return NULL;
+}
+
+int max_stacksize(void) {
+  int max = 0;
+  for (LVar *var = locals; var; var = var->next)
+    if (var->offset > max)
+      max = var->offset;
+  return max;
+}
 
 // 如果下一个 token 是期望的符号，就读取一个 token
 // 并返回 true；否则返回 false。
@@ -225,7 +243,18 @@ static Node *primary(void) {
   if (tok) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = ND_LVAR;
-    node->offset = (tok->str[0] - 'a' + 1) * 8;
+    LVar *lvar = find_lvar(tok);
+    if (lvar) {
+      node->offset = lvar->offset;
+    } else {
+      lvar = calloc(1, sizeof(LVar));
+      lvar->next = locals;
+      lvar->name = tok->str;
+      lvar->len = tok->len;
+      lvar->offset = locals ? locals->offset + 8 : 8;
+      node->offset = lvar->offset;
+      locals = lvar;
+    }
     return node;
   }
   // 否则应为数值

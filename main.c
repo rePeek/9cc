@@ -49,10 +49,12 @@ int main(int argc, char **argv) {
   printf("main:\n");
 
   // prologue
-  // 确保 26 个变量的区域
+  int stack_size = max_stacksize();
+  if (stack_size % 16 != 0)
+    stack_size += 16 - stack_size % 16;
   printf(" push rbp\n");
   printf(" mov rbp, rsp\n");
-  printf(" sub rsp, 208\n");
+  printf(" sub rsp, %d\n", stack_size);
 
   // 从第一个表达式开始依次生成代码
   for (int i = 0; code[i]; i++) {

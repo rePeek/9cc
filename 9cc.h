@@ -53,6 +53,16 @@ struct Node {
   int offset;    // 仅在kind为 ND_LVAR 时使用
 };
 
+typedef struct LVar LVar;
+
+struct LVar {
+  LVar *next;
+  char *name;
+  int len;
+  int offset;
+};
+
+extern LVar *locals;
 extern Token *token;
 extern char *user_input;
 extern Node *code[];
@@ -65,5 +75,6 @@ void program(void);
 Node *stmt(void);
 Node *expr(void);
 void gen(Node *node);
+int max_stacksize(void);
 
 #endif
