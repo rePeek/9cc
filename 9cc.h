@@ -14,6 +14,7 @@ typedef enum {
   TK_IDENT,    // 标识符
   TK_NUM,      // 整数 token
   TK_EOF,      // 表示输入结束的 token
+  TK_RETURN,   // 表示返回值
 } TokenKind;
 
 typedef struct Token Token;
@@ -40,6 +41,7 @@ typedef enum {
   ND_LT,     // <
   ND_LE,     // <=
   ND_NUM,    // 整数
+  ND_RETURN, // 返回值
 } NodeKind;
 
 typedef struct Node Node;

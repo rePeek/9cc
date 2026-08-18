@@ -3,6 +3,11 @@
 
 // ==================== Tokenizer ====================
 
+int is_alnum(char c) {
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') ||
+         ('0' <= c && c <= '9') || (c == '_');
+}
+
 // 创建新 token 并连接到 cur
 static Token *new_token(TokenKind kind, Token *cur, char *str) {
   Token *tok = calloc(1, sizeof(Token));
@@ -42,6 +47,13 @@ Token *tokenize(char *p) {
       continue;
     }
 
+    if (startswith(p, "return") && !is_alnum(p[6])) {
+      cur = new_token(TK_RETURN, cur, p);
+      cur->len = 6;
+      p += 6;
+      continue;
+    }
+
     if (isdigit(*p)) {
       char *q = p;
       cur = new_token(TK_NUM, cur, p);
@@ -65,21 +77,24 @@ Token *tokenize(char *p) {
 
 // ==================== Token Helpers ====================
 
-// 如果下一个 token 是期望的符号，就读取一个 token
+// 如果下一个 token 是期望的符号或关键字，就读取一个 token
 // 并返回 true；否则返回 false。
 static bool consume(char *op) {
-  if (token->kind != TK_RESERVED || (int)strlen(op) != token->len ||
-      memcmp(token->str, op, token->len))
-    return false;
-  token = token->next;
-  return true;
+  if (token->kind == TK_RESERVED || token->kind == TK_RETURN) {
+    if ((int)strlen(op) == token->len && !memcmp(token->str, op, token->len)) {
+      token = token->next;
+      return true;
+    }
+  }
+  return false;
 }
 
 // 如果下一个 token 是期望的符号，就读取一个 token。
 // 否则报告错误。
 static void expect(char *op) {
-  if (token->kind != TK_RESERVED || (int)strlen(op) != token->len ||
-      memcmp(token->str, op, token->len))
+  if (token->kind != TK_RESERVED && token->kind != TK_RETURN)
+    error_at(token->str, "不是 '%s'", op);
+  if ((int)strlen(op) != token->len || memcmp(token->str, op, token->len))
     error_at(token->str, "不是 '%s'", op);
   token = token->next;
 }
@@ -163,8 +178,18 @@ void program(void) {
 }
 
 Node *stmt() {
-  Node *node = expr();
-  expect(";");
+  Node *node;
+
+  if (consume("return")) {
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_RETURN;
+    node->lhs = expr();
+  } else {
+    node = expr();
+  }
+
+  if (!consume(";"))
+    error_at(token->str, "不是 ';'");
   return node;
 }
 

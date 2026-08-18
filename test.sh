@@ -65,4 +65,10 @@ assert 1 "1<2==1;"
 assert 1 " 3 >= 2 ;"
 assert_error "1+3++
      ^ 不是数字" "1+3++"
+# return 语句
+assert 5 "return 5;"
+assert 8 "return 5+3;"
+assert 15 "return 5*(9-6);"
+assert 1 "return 1; return 7;"
+assert 10 "a=3; return a+7;"
 echo OK
