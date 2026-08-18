@@ -1,63 +1,7 @@
 #include "9cc.h"
 #include <string.h>
 
-LVar *locals;
-
-LVar *find_lvar(Token *tok) {
-  for (LVar *var = locals; var; var = var->next)
-    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
-      return var;
-  return NULL;
-}
-
-int max_stacksize(void) {
-  int max = 0;
-  for (LVar *var = locals; var; var = var->next)
-    if (var->offset > max)
-      max = var->offset;
-  return max;
-}
-
-// 如果下一个 token 是期望的符号，就读取一个 token
-// 并返回 true；否则返回 false。
-static bool consume(char *op) {
-  if (token->kind != TK_RESERVED || (int)strlen(op) != token->len ||
-      memcmp(token->str, op, token->len))
-    return false;
-  token = token->next;
-  return true;
-}
-
-// 如果下一个 token 是期望的符号，就读取一个 token。
-// 否则报告错误。
-static void expect(char *op) {
-  if (token->kind != TK_RESERVED || (int)strlen(op) != token->len ||
-      memcmp(token->str, op, token->len))
-    error_at(token->str, "不是 '%s'", op);
-  token = token->next;
-}
-
-// 如果下一个 token 是数值，就读取一个 token 并返回该数值。
-// 否则报告错误。
-static int expect_number(void) {
-  if (token->kind != TK_NUM)
-    error_at(token->str, "不是数字");
-  int val = token->val;
-  token = token->next;
-  return val;
-}
-
-bool at_eof(void) { return token->kind == TK_EOF; }
-
-// 如果下一个 token 是标识符，就读取一个 token 并返回它。
-// 否则返回 NULL。
-Token *consume_ident(void) {
-  if (token->kind != TK_IDENT)
-    return NULL;
-  Token *tok = token;
-  token = token->next;
-  return tok;
-}
+// ==================== Tokenizer ====================
 
 // 创建新 token 并连接到 cur
 static Token *new_token(TokenKind kind, Token *cur, char *str) {
@@ -119,6 +63,51 @@ Token *tokenize(char *p) {
   return head.next;
 }
 
+// ==================== Token Helpers ====================
+
+// 如果下一个 token 是期望的符号，就读取一个 token
+// 并返回 true；否则返回 false。
+static bool consume(char *op) {
+  if (token->kind != TK_RESERVED || (int)strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
+    return false;
+  token = token->next;
+  return true;
+}
+
+// 如果下一个 token 是期望的符号，就读取一个 token。
+// 否则报告错误。
+static void expect(char *op) {
+  if (token->kind != TK_RESERVED || (int)strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
+    error_at(token->str, "不是 '%s'", op);
+  token = token->next;
+}
+
+// 如果下一个 token 是数值，就读取一个 token 并返回该数值。
+// 否则报告错误。
+static int expect_number(void) {
+  if (token->kind != TK_NUM)
+    error_at(token->str, "不是数字");
+  int val = token->val;
+  token = token->next;
+  return val;
+}
+
+bool at_eof(void) { return token->kind == TK_EOF; }
+
+// 如果下一个 token 是标识符，就读取一个 token 并返回它。
+// 否则返回 NULL。
+Token *consume_ident(void) {
+  if (token->kind != TK_IDENT)
+    return NULL;
+  Token *tok = token;
+  token = token->next;
+  return tok;
+}
+
+// ==================== AST Node Helpers ====================
+
 static Node *assign(void);
 static Node *equality(void);
 static Node *relational(void);
@@ -126,6 +115,7 @@ static Node *add(void);
 static Node *mul(void);
 static Node *unary(void);
 static Node *primary(void);
+Node *stmt(void);
 
 Node *code[100];
 
@@ -143,6 +133,27 @@ static Node *new_node_num(int val) {
   node->val = val;
   return node;
 }
+
+// ==================== Semantic Analysis ====================
+
+LVar *locals;
+
+LVar *find_lvar(Token *tok) {
+  for (LVar *var = locals; var; var = var->next)
+    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+      return var;
+  return NULL;
+}
+
+int max_stacksize(void) {
+  int max = 0;
+  for (LVar *var = locals; var; var = var->next)
+    if (var->offset > max)
+      max = var->offset;
+  return max;
+}
+
+// ==================== Parser ====================
 
 void program(void) {
   int i = 0;
