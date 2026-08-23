@@ -9,6 +9,8 @@
 等是本地生成产物，不应提交。Nix 开发环境由 `flake.nix` 和 `flake.lock`
 定义。
 
+参考的源码为：https://github.com/rui314/chibicc
+
 ## 构建、测试与开发命令
 
 所有项目命令都应在 Nix 开发环境中运行：
