@@ -35,20 +35,20 @@ Token *tokenize(char *p) {
 
     if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
         startswith(p, ">=")) {
-      cur = new_token(TK_RESERVED, cur, p);
+      cur = new_token(TK_PUNCT, cur, p);
       cur->len = 2;
       p += 2;
       continue;
     }
 
     if (strchr("+-*/()<>;=", *p)) {
-      cur = new_token(TK_RESERVED, cur, p++);
+      cur = new_token(TK_PUNCT, cur, p++);
       cur->len = 1;
       continue;
     }
 
     if (startswith(p, "return") && !is_alnum(p[6])) {
-      cur = new_token(TK_RETURN, cur, p);
+      cur = new_token(TK_KEYWORD, cur, p);
       cur->len = 6;
       p += 6;
       continue;
@@ -80,7 +80,7 @@ Token *tokenize(char *p) {
 // 如果下一个 token 是期望的符号或关键字，就读取一个 token
 // 并返回 true；否则返回 false。
 static bool consume(char *op) {
-  if (token->kind == TK_RESERVED || token->kind == TK_RETURN) {
+  if (token->kind == TK_PUNCT || token->kind == TK_KEYWORD) {
     if ((int)strlen(op) == token->len && !memcmp(token->str, op, token->len)) {
       token = token->next;
       return true;
@@ -92,7 +92,7 @@ static bool consume(char *op) {
 // 如果下一个 token 是期望的符号，就读取一个 token。
 // 否则报告错误。
 static void expect(char *op) {
-  if (token->kind != TK_RESERVED && token->kind != TK_RETURN)
+  if (token->kind != TK_PUNCT && token->kind != TK_KEYWORD)
     error_at(token->str, "不是 '%s'", op);
   if ((int)strlen(op) != token->len || memcmp(token->str, op, token->len))
     error_at(token->str, "不是 '%s'", op);

@@ -10,11 +10,11 @@
 
 // token 的种类
 typedef enum {
-  TK_RESERVED, // 保留字
-  TK_IDENT,    // 标识符
-  TK_NUM,      // 整数 token
-  TK_EOF,      // 表示输入结束的 token
-  TK_RETURN,   // 表示返回值
+  TK_PUNCT,   // 运算符
+  TK_IDENT,   // 标识符
+  TK_NUM,     // 整数 token
+  TK_EOF,     // 表示输入结束的 token
+  TK_KEYWORD, // 关键字
 } TokenKind;
 
 typedef struct Token Token;
