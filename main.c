@@ -1,4 +1,4 @@
-#include "9cc.h"
+#include "chibicc.h"
 
 // 当前关注的 token
 Token *token;

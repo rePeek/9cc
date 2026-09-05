@@ -1,5 +1,5 @@
-#ifndef NINECC_H
-#define NINECC_H
+#ifndef CHIBICC_H
+#define CHIBICC_H
 
 #include <ctype.h>
 #include <stdarg.h>

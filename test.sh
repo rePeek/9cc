@@ -3,7 +3,7 @@ assert() {
   expected="$1"
   input="$2"
 
-  ./9cc "$input" > tmp.s
+  ./chibicc "$input" > tmp.s
   cc -static -o tmp tmp.s
   ./tmp
   actual="$?"
@@ -20,7 +20,7 @@ assert_error() {
   expected="$1"
   input="$2"
 
-  ./9cc "$input" > /dev/null 2> tmp.err
+  ./chibicc "$input" > /dev/null 2> tmp.err
   actual="$(cat tmp.err)"
 
   if [ "$actual" = "$expected" ]; then

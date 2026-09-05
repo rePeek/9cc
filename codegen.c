@@ -1,4 +1,4 @@
-#include "9cc.h"
+#include "chibicc.h"
 
 void gen_lval(Node *node) {
   if (node->kind != ND_LVAR)
