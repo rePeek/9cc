@@ -1,0 +1,135 @@
+#include "chibicc.h"
+
+static char *current_input;
+
+// ==================== ErrorReport ====================
+
+void error(char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
+// 报告错误位置
+static void verror_at(char *loc, char *fmt, va_list ap) {
+  int pos = loc - current_input;
+  fprintf(stderr, "%s\n", current_input);
+  fprintf(stderr, "%*s", pos, "");
+  fprintf(stderr, "^ ");
+  vfprintf(stderr, fmt, ap);
+  va_end(ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
+void error_at(char *loc, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  verror_at(loc, fmt, ap);
+}
+
+void error_tok(Token *tok, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  verror_at(tok->loc, fmt, ap);
+}
+
+// Consumes the current token if it matches `op`.
+bool equal(Token *tok, char *op) {
+  return memcmp(tok->loc, op, tok->len) == 0 && op[tok->len] == '\0';
+}
+
+// Ensure that the current token is `op`.
+Token *skip(Token *tok, char *op) {
+  if (!equal(tok, op))
+    error_tok(tok, "expected '%s'", op);
+  return tok->next;
+}
+
+// ====================  Tokenizer  ====================
+
+// 创建新 token 并连接到 cur
+static Token *new_token(TokenKind kind, char *start, char *end) {
+  Token *tok = calloc(1, sizeof(Token));
+  tok->kind = kind;
+  tok->loc = start;
+  tok->len = end - start;
+  return tok;
+}
+
+static bool startswith(char *p, char *q) {
+  return strncmp(p, q, strlen(q)) == 0;
+}
+
+// Returns true if c is valid as the first character of an identifier.
+static bool is_ident1(char c) {
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+}
+
+// Returns true if c is valid as a non-first character of an identifier.
+static bool is_ident2(char c) { return is_ident1(c) || ('0' <= c && c <= '9'); }
+
+// Read a punctuator token from p and returns its length.
+static int read_punct(char *p) {
+  if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
+      startswith(p, ">="))
+    return 2;
+
+  return ispunct(*p) ? 1 : 0;
+}
+
+static void convert_keywords(Token *tok) {
+  for (Token *t = tok; t->kind != TK_EOF; t = t->next)
+    if (equal(t, "return"))
+      t->kind = TK_KEYWORD;
+}
+
+// tokenize 输入字符串 p 并返回结果
+Token *tokenize(char *p) {
+  current_input = p;
+  Token head = {0};
+  Token *cur = &head;
+
+  while (*p) {
+    // 跳过空白字符
+    if (isspace(*p)) {
+      p++;
+      continue;
+    }
+
+    // Numeric literal
+    if (isdigit(*p)) {
+      char *q = p;
+      cur = cur->next = new_token(TK_NUM, p, p);
+      cur->val = strtol(p, &p, 10);
+      cur->len = p - q;
+      continue;
+    }
+
+    // Identifier or keyword
+    if (is_ident1(*p)) {
+      char *start = p;
+      do {
+        p++;
+      } while (is_ident2(*p));
+      cur = cur->next = new_token(TK_IDENT, start, p);
+      continue;
+    }
+
+    // Punctuators
+    int punct_len = read_punct(p);
+    if (punct_len) {
+      cur = cur->next = new_token(TK_PUNCT, p, p + punct_len);
+      p += cur->len;
+      continue;
+    }
+
+    error_at(p, "invalid token");
+  }
+
+  cur = cur->next = new_token(TK_EOF, p, p);
+  convert_keywords(head.next);
+  return head.next;
+}

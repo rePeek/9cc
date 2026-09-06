@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+// tokenizer.c
+
 // token 的种类
 typedef enum {
   TK_PUNCT,   // 运算符
@@ -21,12 +23,19 @@ typedef struct Token Token;
 
 // token 类型
 struct Token {
-  Token *next;    // 下一个输入 token
-  char *str;      // token 字符串
   TokenKind kind; // token 类型
+  Token *next;    // 下一个输入 token
   int val;        // kind 为 TK_NUM 时的数值
+  char *loc;      // token 位置
   int len;        // token 长度
 };
+
+Token *tokenize(char *p);
+void error(char *fmt, ...);
+void error_at(char *loc, char *fmt, ...);
+void error_tok(Token *tok, char *fmt, ...);
+bool equal(Token *tok, char *op);
+Token *skip(Token *tok, char *op);
 
 // 抽象语法树节点的种类
 typedef enum {
@@ -65,14 +74,8 @@ struct LVar {
 };
 
 extern LVar *locals;
-extern Token *token;
-extern char *user_input;
 extern Node *code[];
 
-Token *tokenize(char *p);
-void error(char *fmt, ...);
-void error_at(char *loc, char *fmt, ...);
-bool at_eof(void);
 void program(void);
 Node *stmt(void);
 Node *expr(void);

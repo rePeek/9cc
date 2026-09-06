@@ -1,45 +1,10 @@
 #include "chibicc.h"
 
-// 当前关注的 token
-Token *token;
-
-// 输入字符串
-char *user_input;
-
-// 用于报告错误的函数
-// 接收与 printf 相同的参数
-void error(char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  va_end(ap);
-  fprintf(stderr, "\n");
-  exit(1);
-}
-
-// 报告错误位置
-void error_at(char *loc, char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-
-  int pos = loc - user_input;
-  fprintf(stderr, "%s\n", user_input);
-  fprintf(stderr, "%*s", pos, "");
-  fprintf(stderr, "^ ");
-  vfprintf(stderr, fmt, ap);
-  va_end(ap);
-  fprintf(stderr, "\n");
-  exit(1);
-}
-
 int main(int argc, char **argv) {
-  if (argc != 2) {
+  if (argc != 2)
     error("参数个数不正确");
-    return 1;
-  }
 
-  user_input = argv[1];
-  token = tokenize(user_input);
+  Token *token = tokenize(argv[1]);
 
   program();
 
