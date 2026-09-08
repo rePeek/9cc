@@ -5,6 +5,7 @@
 // accumulated to this list.
 Obj *locals;
 
+static Node *compound_stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
 static Node *expr_stmt(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
@@ -64,6 +65,9 @@ static Obj *new_lvar(char *name) {
 }
 
 // stmt = "return" expr ";"
+//      | "if" "(" expr ")" stmt ("else" stmt)?
+//      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
+//      | "{" compound-stmt
 //      | expr-stmt
 static Node *stmt(Token **rest, Token *tok) {
   if (equal(tok, "return")) {
@@ -72,11 +76,63 @@ static Node *stmt(Token **rest, Token *tok) {
     return node;
   }
 
+  if (equal(tok, "if")) {
+    Node *node = new_node(ND_IF);
+    tok = skip(tok->next, "(");
+    node->cond = expr(&tok, tok);
+    tok = skip(tok, ")");
+    node->then = stmt(&tok, tok);
+    if (equal(tok, "else"))
+      node->els = stmt(&tok, tok->next);
+    *rest = tok;
+    return node;
+  }
+
+  if (equal(tok, "for")) {
+    Node *node = new_node(ND_FOR);
+    tok = skip(tok->next, "(");
+
+    node->init = expr_stmt(&tok, tok);
+
+    if (!equal(tok, ";"))
+      node->cond = expr(&tok, tok);
+    tok = skip(tok, ";");
+
+    if (!equal(tok, ")"))
+      node->inc = expr(&tok, tok);
+    tok = skip(tok, ")");
+
+    node->then = stmt(rest, tok);
+    return node;
+  }
+
+  if (equal(tok, "{"))
+    return compound_stmt(rest, tok->next);
+
   return expr_stmt(rest, tok);
 }
 
-// expr-stmt = expr ";"
+// compount-stmt = stmt* "}"
+static Node *compound_stmt(Token **rest, Token *tok) {
+  Node head = {};
+  Node *cur = &head;
+
+  while (!equal(tok, "}"))
+    cur = cur->next = stmt(&tok, tok);
+
+  Node *node = new_node(ND_BLOCK);
+  node->body = head.next;
+  *rest = tok->next;
+  return node;
+}
+
+// expr-stmt = expr? ";"
 static Node *expr_stmt(Token **rest, Token *tok) {
+  if (equal(tok, ";")) {
+    *rest = tok->next;
+    return new_node(ND_BLOCK);
+  }
+
   Node *node = new_unary(ND_EXPR_STMT, expr(&tok, tok));
   *rest = skip(tok, ";");
   return node;
@@ -224,14 +280,10 @@ static Node *primary(Token **rest, Token *tok) {
 
 // program = stmt*
 Function *parse(Token *tok) {
-  Node head = {};
-  Node *cur = &head;
-
-  while (tok->kind != TK_EOF)
-    cur = cur->next = stmt(&tok, tok);
+  tok = skip(tok, "{");
 
   Function *prog = calloc(1, sizeof(Function));
-  prog->body = head.next;
+  prog->body = compound_stmt(&tok, tok);
   prog->locals = locals;
   return prog;
 }

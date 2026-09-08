@@ -64,22 +64,38 @@ typedef enum {
   ND_LT,        // <
   ND_LE,        // <=
   ND_ASSIGN,    // =
-  ND_RETURN,    // 返回值
+  ND_RETURN,    // "return"
+  ND_IF,        // "if"
+  ND_FOR,       // "for"
+  ND_BLOCK,     // { ... }
   ND_EXPR_STMT, // Expression statement
-  ND_VAR,       // 局部变量
-  ND_NUM,       // 整数
+  ND_VAR,       // Variable
+  ND_NUM,       // Integer
 } NodeKind;
 
 typedef struct Node Node;
 
 // 抽象语法树节点的类型
+// 抽象语法树节点的类型
 struct Node {
   NodeKind kind; // 节点类型
   Node *next;    // Next node
-  Node *lhs;     // 左边
-  Node *rhs;     // 右边
-  int val;       // 仅在 kind 为 ND_NUM 时使用
-  Obj *var;      // 仅在kind为 ND_VAR 时使用
+
+  Node *lhs; // Left-hand side
+  Node *rhs; // Right-hand side
+
+  // "if" or "for" statement
+  Node *cond;
+  Node *then;
+  Node *els;
+  Node *init;
+  Node *inc;
+
+  // Block
+  Node *body;
+
+  Obj *var; // Used if kind == ND_VAR
+  int val;  // Used if kind == ND_NUM
 };
 
 // Function

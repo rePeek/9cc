@@ -93,11 +93,50 @@ static void gen_expr(Node *node) {
   error("invalid expression");
 }
 
+static int count(void) {
+  static int i = 1;
+  return i++;
+}
+
 static void gen_stmt(Node *node) {
   switch (node->kind) {
+  case ND_IF: {
+    int c = count();
+    gen_expr(node->cond);
+    printf("  cmp $0, %%rax\n");
+    printf("  je  .L.else.%d\n", c);
+    gen_stmt(node->then);
+    printf("  jmp .L.end.%d\n", c);
+    printf(".L.else.%d:\n", c);
+    if (node->els)
+      gen_stmt(node->els);
+    printf(".L.end.%d:\n", c);
+    return;
+  }
+  case ND_FOR: {
+    int c = count();
+    if (node->init)
+      gen_stmt(node->init);
+    printf(".L.begin.%d:\n", c);
+    if (node->cond) {
+      gen_expr(node->cond);
+      printf("  cmp $0, %%rax\n");
+      printf("  je  .L.end.%d\n", c);
+    }
+    gen_stmt(node->then);
+    if (node->inc)
+      gen_expr(node->inc);
+    printf("  jmp .L.begin.%d\n", c);
+    printf(".L.end.%d:\n", c);
+    return;
+  }
   case ND_RETURN:
     gen_expr(node->lhs);
     printf("  jmp .L.return\n");
+    return;
+  case ND_BLOCK:
+    for (Node *n = node->body; n; n = n->next)
+      gen_stmt(n);
     return;
   case ND_EXPR_STMT:
     gen_expr(node->lhs);
@@ -128,10 +167,8 @@ void codegen(Function *prog) {
   printf("  mov %%rsp, %%rbp\n");
   printf("  sub $%d, %%rsp\n", prog->stack_size);
 
-  for (Node *n = prog->body; n; n = n->next) {
-    gen_stmt(n);
-    assert(depth == 0);
-  }
+  gen_stmt(prog->body);
+  assert(depth == 0);
 
   printf(".L.return:\n");
   printf("  mov %%rbp, %%rsp\n");
