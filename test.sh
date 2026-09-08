@@ -64,7 +64,7 @@ assert 1 "1+2*3==7;"
 assert 1 "1<2==1;"
 assert 1 " 3 >= 2 ;"
 assert_error "1+3++
-     ^ 不是数字" "1+3++"
+     ^ expected an expression" "1+3++"
 # return 语句
 assert 5 "return 5;"
 assert 8 "return 5+3;"
